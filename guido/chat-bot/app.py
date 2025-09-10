@@ -6,7 +6,7 @@ import os
 import re
 from dotenv import load_dotenv
 from googletrans import Translator
-import OpenAI
+from openai import OpenAI
 
 # Cargar variables de entorno desde .env
 load_dotenv()
