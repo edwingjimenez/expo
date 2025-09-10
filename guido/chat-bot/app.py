@@ -5,20 +5,22 @@ import requests
 import os
 import re
 from dotenv import load_dotenv
-from googletrans import Translator 
-from openai import OpenAI 
+from googletrans import Translator
+from openai import OpenAI
+
 # Cargar variables de entorno desde .env
 load_dotenv()
 
 app = Flask(__name__)
-translator = Translator()  
+translator = Translator()
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY') # Nueva variable para OpenAI
 
 print(f"🔑 GEMINI_API_KEY cargada: {bool(GEMINI_API_KEY)}")
-print(f"🔑 DEEPSEEK_API_KEY cargada: {bool(DEEPSEEK_API_KEY)}")
+print(f"🔑 OPENAI_API_KEY cargada: {bool(OPENAI_API_KEY)}")
 
+# Configuración de Gemini
 if GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
@@ -26,6 +28,17 @@ if GEMINI_API_KEY:
         print("✅ Gemini configurado correctamente")
     except Exception as e:
         print(f"❌ Error configurando Gemini: {e}")
+
+# Configuración de OpenAI (gpt-oss-120b)
+if OPENAI_API_KEY:
+    try:
+        openai_client = OpenAI(
+            base_url="https://api.pawan.krd/v1", # URL específica para gpt-oss-120b (gratuita)
+            api_key=OPENAI_API_KEY
+        )
+        print("✅ OpenAI (gpt-oss-120b) configurado correctamente")
+    except Exception as e:
+        print(f"❌ Error configurando OpenAI: {e}")
 
 responses = {
     "hola": "¡Hola! ¿En qué puedo ayudarte?",
@@ -65,7 +78,7 @@ def traducir_a_espanol(texto):
         
         print(f"🔍 Detección idioma: {count_ingles}/{total_palabras} palabras en inglés ({porcentaje_ingles:.2%})")
         
-        # Si más del 30% son palabras en inglés, traducir
+        # Si más del 10% son palabras en inglés, traducir
         if porcentaje_ingles > 0.1:
             print("🌍 Traduciendo de inglés a español...")
             traduccion = translator.translate(texto, dest='es')
@@ -85,7 +98,7 @@ def limpiar_texto(texto):
     
     # 1. Eliminar markdown y caracteres especiales
     texto = re.sub(r'[\*\#\_\`\~\-\=]', ' ', texto)  # Elimina * # _ ` ~ - =
-    texto = re.sub(r'\[.*?\]\(.*?\)', '', texto)     # Elimina [enlaces](url)
+    texto = re.sub(r'\[.*?\]\(.*?\)', '', texto)      # Elimina [enlaces](url)
     
     # 2. Eliminar frases típicas de IAs
     frases_a_eliminar = [
@@ -132,27 +145,17 @@ def ask_gemini(user_message):
         print(f"❌ Error consultando Gemini: {e}")
         return "Error consultando Gemini"
 
-def ask_deepseek(user_message):
-    """Consulta real a DeepSeek con traducción y limpieza"""
-    if not DEEPSEEK_API_KEY:
-        return "DeepSeek API Key no configurada."
+# ✅ NUEVA FUNCIÓN PARA CONSULTAR A OPENAI
+def ask_openai(user_message):
+    """Consulta real a OpenAI con traducción y limpieza"""
+    if not OPENAI_API_KEY:
+        return "OpenAI API Key no configurada."
     try:
-        url = "https://openrouter.ai/api/v1"
-        headers = {
-            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "deepseek-chat",
-            "messages": [
-                {"role": "user", "content": user_message}
-            ]
-        }
-        response = requests.post(url, headers=headers, json=data, timeout=30)
-        response.raise_for_status()
-        result = response.json()
-        
-        text = result["choices"][0]["message"]["content"]
+        response = openai_client.chat.completions.create(
+            model="gpt-oss-120b",
+            messages=[{"role": "user", "content": user_message}]
+        )
+        text = response.choices[0].message.content
         
         # ✅ Aplicar traducción y limpieza
         text = traducir_a_espanol(text)
@@ -160,8 +163,9 @@ def ask_deepseek(user_message):
         
         return text
     except Exception as e:
-        print(f"❌ Error consultando DeepSeek: {e}")
-        return "Error consultando DeepSeek"
+        print(f"❌ Error consultando OpenAI: {e}")
+        return "Error consultando OpenAI"
+
 
 @app.route('/')
 def home():
@@ -175,7 +179,7 @@ def get_response():
         
         print(f"📩 Mensaje recibido: '{user_message}'")
         print(f"🎯 IA seleccionada: '{ai_selected}'")
-       
+        
         for key in responses:
             if key in user_message:
                 print(f"✅ Usando respuesta predefinida para: {key}")
@@ -191,9 +195,9 @@ def get_response():
             print("🔧 Solicitando Gemini...")
             bot_response = ask_gemini(user_message)
         
-        elif ai_selected == 'deepseek':
-            print("🔧 Solicitando DeepSeek...")
-            bot_response = ask_deepseek(user_message)
+        elif ai_selected == 'openai': # Cambiado de 'deepseek' a 'openai'
+            print("🔧 Solicitando OpenAI (gpt-oss-120b)...")
+            bot_response = ask_openai(user_message)
         
         else:  # Modo automático
             print("🔧 Modo automático... usando Gemini")
