@@ -6,7 +6,7 @@ import os
 import re
 from dotenv import load_dotenv
 from googletrans import Translator
-import Openai
+import OpenAI
 
 # Cargar variables de entorno desde .env
 load_dotenv()
@@ -32,7 +32,7 @@ if GEMINI_API_KEY:
 # Configuración de OpenAI (gpt-oss-120b)
 if OPENAI_API_KEY:
     try:
-        openai_client = Openai(
+        openai_client = OpenAI(
             base_url="https://api.pawan.krd/v1", # URL específica para gpt-oss-120b (gratuita)
             api_key=OPENAI_API_KEY
         )
