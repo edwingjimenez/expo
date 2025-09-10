@@ -32,7 +32,7 @@ if GEMINI_API_KEY:
 # Configuración de OpenAI (gpt-oss-120b)
 if OPENAI_API_KEY:
     try:
-        openai_client = OpenAI(
+        openai_client = Openai(
             base_url="https://api.pawan.krd/v1", # URL específica para gpt-oss-120b (gratuita)
             api_key=OPENAI_API_KEY
         )
